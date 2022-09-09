@@ -1,0 +1,5 @@
+.idea
+tf_packager.egg-info/
+models
+.eggs
+**/__pycache__

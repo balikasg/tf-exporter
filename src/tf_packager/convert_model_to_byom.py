@@ -2,6 +2,7 @@
 Heavily inspired by: https://www.tensorflow.org/text/guide/bert_preprocessing_guide
 """
 import argparse
+import logging
 from pathlib import Path
 from numpy.testing import assert_almost_equal
 import tensorflow as tf
@@ -9,6 +10,8 @@ from sentence_transformers import SentenceTransformer
 from sentence_transformers.util import import_from_string
 from utils import load_json
 
+LOG = logging.getLogger("tf-exporter")
+LOG.setLevel(logging.INFO)
 
 MAX_SEQ_LENGTH_DEFAULT = 256
 # Transformers model artifacts depending on the backend are named:
@@ -18,10 +21,10 @@ KERAS_INPUT_NAME = "input_sequence"
 KERAS_OUTPUT_NAME = "complete_sentence_transformer"
 
 MODEL_MAPPING = {
-    "sentence_transformers.models.Transformer": "tf_packager.models.Transformer",
-    "sentence_transformers.models.Normalize": "tf_packager.models.Normalize",
-    "sentence_transformers.models.Pooling": "tf_packager.models.Pooling",
-    "sentence_transformers.models.Dense": "tf_packager.models.Dense"
+    "sentence_transformers.models.Transformer": "src.tf_packager.models.Transformer",
+    "sentence_transformers.models.Normalize": "src.tf_packager.models.Normalize",
+    "sentence_transformers.models.Pooling": "src.tf_packager.models.Pooling",
+    "sentence_transformers.models.Dense": "src.tf_packager.models.Dense"
 }
 
 
@@ -73,29 +76,25 @@ class CompleteSentenceTransformer(tf.keras.layers.Layer):
 
 
 class ModelStoreConverter:
-    """Class to convert a TensorFlow to BYOM model"""
+    """Class to convert a Tranformer Model that consist of tokenizer, a transformers model and
+    potentially other part to a single TensorFlow graph"""
 
     def __init__(self, model_name_or_path,
-                 byom_model_id,
                  output_dir):
         """Initialization.
         Parameters
         ----------
         model_name_or_path: str or pathlib.Path
             Path to the Sentence Transformer model or name of the model
-        byom_model_id: str
-            canonical name for byom model. It should be equal to what we use for pushing the model
         output_dir: str
-            Path to store TensorFlow and BYOM models
+            Path to store TensorFlow graph
         """
         self.model_name_or_path = model_name_or_path
-        self.byom_model_id = byom_model_id
         self.embedding_size = None
         self.tf_output_dir = Path(output_dir) / 'tf_model'
-        self.byom_output_dir = Path(output_dir) / 'byom_model'
 
     def convert_pytorch_to_tensorflow(self, input_test):
-        """Converts sentence transformer pytorch model to tensorflow.  The
+        """Converts sentence transformer pytorch model to tensorflow. The
         function will fail if it finds discrepancy between different intermediate models
         embeddings and currently only works for `sentence-transformers/nq-distilbert-base-v1`
         Parameters
@@ -171,26 +170,6 @@ class ModelStoreConverter:
         sentence_transformer_pt_model = SentenceTransformer(self.model_name_or_path)
         return sentence_transformer_pt_model.encode(input_test)
 
-    def convert_tf_model_to_byom(self):
-        """Convert a tf model to BYOM. For more info see the guidelines at
-         https://salesforce.quip.com/h2LbAK2Axwx0
-
-         """
-        model_metadata = TrainedModelMetadata(
-            model_id=self.byom_model_id, platform=Platform.TENSORFLOW,
-            inputs=[TensorDef(name=KERAS_INPUT_NAME, shape=[-1, 1],
-                              datatype=DataType.bytes)],
-            outputs=[TensorDef(name=KERAS_OUTPUT_NAME,
-                               shape=[-1, self.embedding_size],
-                               datatype=DataType.fp32)])
-
-        self.byom_output_dir.mkdir(exist_ok=True, parents=True)
-        TFModelExporter.package_model_check(self=None, model_metadata=model_metadata,
-                                            model_dir=self.tf_output_dir,
-                                            output_dir=self.byom_output_dir,
-                                            model_optimization=False)
-        LOG.info('BYOM model artifact stored at `%s`' % self.byom_output_dir)
-
 
 def get_parser():
     """Argument parser"""
@@ -200,17 +179,12 @@ def get_parser():
                         default='sentence-transformers/nq-distilbert-base-v1',
                         help='Sentence Transformer model name or path')
     parser.add_argument('--output-dir', type=str, default='models',
-                        help='Directory to save the tf and byom models')
-    parser.add_argument('--byom-model-id', type=str, default='search-qna-byom-text-embedder-0.0.1',
-                        help='BYOM model id. Should not have `/`. It can be different from '
-                             'canonicalName!')
+                        help='Directory to save the tensorflow model as a single graph')
     return parser
 
 
 if __name__ == "__main__":
     args = get_parser().parse_args()
     converter = ModelStoreConverter(model_name_or_path=args.model_name_or_path,
-                                    byom_model_id=args.byom_model_id,
                                     output_dir=args.output_dir)
     converter.convert_pytorch_to_tensorflow(input_test='This is a test')
-    converter.convert_tf_model_to_byom()

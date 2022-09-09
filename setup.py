@@ -2,7 +2,7 @@ import os
 import setuptools
 from setuptools import setup
 
-NAME = "tf-packager"
+NAME = "tf_packager"
 print('packages found', setuptools.find_packages())
 
 
@@ -16,7 +16,8 @@ def load_dependencies():
 
 setup(
     name=NAME,
-    packages=setuptools.find_packages(),
+    packages=[NAME],
+    package_dir={NAME: f'src/tf_packager'},
     version="0.0.1",
     description='Packages a sentence-transformer models as a single tensorflow graph',
     setup_requires=['pytest_runner'],
