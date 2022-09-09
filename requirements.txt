@@ -1,2 +1,5 @@
+numpy
 transformers
-tensforflow
+sentence-transformers
+tensorflow
+tensorflow_text
