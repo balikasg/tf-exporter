@@ -16,8 +16,7 @@ def load_dependencies():
 
 setup(
     name=NAME,
-    packages=[NAME],
-    package_dir={NAME: f'src/tf_packager'},
+    packages=setuptools.find_packages(),
     version="0.0.1",
     description='Packages a sentence-transformer models as a single tensorflow graph',
     setup_requires=['pytest_runner'],

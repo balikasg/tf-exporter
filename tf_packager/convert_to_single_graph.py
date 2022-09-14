@@ -4,13 +4,15 @@ Heavily inspired by: https://www.tensorflow.org/text/guide/bert_preprocessing_gu
 import argparse
 import logging
 from pathlib import Path
+
 from numpy.testing import assert_almost_equal
 import tensorflow as tf
 from sentence_transformers import SentenceTransformer
 from sentence_transformers.util import import_from_string
-from utils import load_json
 
-LOG = logging.getLogger("tf-exporter")
+from tf_packager.utils import load_json
+
+LOG = logging.getLogger("tf-packager")
 LOG.setLevel(logging.INFO)
 
 MAX_SEQ_LENGTH_DEFAULT = 256
@@ -18,13 +20,13 @@ MAX_SEQ_LENGTH_DEFAULT = 256
 PYTORCH_MODEL = "pytorch_model.bin"
 TF_MODEL = "tf_model.h5"
 KERAS_INPUT_NAME = "input_sequence"
-KERAS_OUTPUT_NAME = "complete_sentence_transformer"
+KERAS_OUTPUT_NAME = "sentence_transformer_packager"
 
 MODEL_MAPPING = {
-    "sentence_transformers.models.Transformer": "src.tf_packager.models.Transformer",
-    "sentence_transformers.models.Normalize": "src.tf_packager.models.Normalize",
-    "sentence_transformers.models.Pooling": "src.tf_packager.models.Pooling",
-    "sentence_transformers.models.Dense": "src.tf_packager.models.Dense"
+    "sentence_transformers.models.Transformer": "tf_packager.models.Transformer",
+    "sentence_transformers.models.Normalize": "tf_packager.models.Normalize",
+    "sentence_transformers.models.Pooling": "tf_packager.models.Pooling",
+    "sentence_transformers.models.Dense": "tf_packager.models.Dense"
 }
 
 
