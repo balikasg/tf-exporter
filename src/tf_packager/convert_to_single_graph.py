@@ -28,7 +28,7 @@ MODEL_MAPPING = {
 }
 
 
-class CompleteSentenceTransformer(tf.keras.layers.Layer):
+class SentenceTransformerPackager(tf.keras.layers.Layer):
     """Class to convert a Sentence Transformer to a TensorFlow model
      with its tokenizer packed in the same graph"""
     def __init__(self, model_name_or_path):
@@ -75,7 +75,7 @@ class CompleteSentenceTransformer(tf.keras.layers.Layer):
         return batch
 
 
-class ModelStoreConverter:
+class ModelConverter:
     """Class to convert a Tranformer Model that consist of tokenizer, a transformers model and
     potentially other part to a single TensorFlow graph"""
 
@@ -151,7 +151,7 @@ class ModelStoreConverter:
             test query used to validate predictions
         """
         # Define model
-        complete_model = CompleteSentenceTransformer(self.model_name_or_path)
+        complete_model = SentenceTransformerPackager(self.model_name_or_path)
         inputs = tf.keras.layers.Input(shape=(1,), dtype=tf.string, name=KERAS_INPUT_NAME)
         outputs = complete_model(inputs)
         model = tf.keras.Model(inputs, outputs)
@@ -185,6 +185,6 @@ def get_parser():
 
 if __name__ == "__main__":
     args = get_parser().parse_args()
-    converter = ModelStoreConverter(model_name_or_path=args.model_name_or_path,
-                                    output_dir=args.output_dir)
+    converter = ModelConverter(model_name_or_path=args.model_name_or_path,
+                               output_dir=args.output_dir)
     converter.convert_pytorch_to_tensorflow(input_test='This is a test')
