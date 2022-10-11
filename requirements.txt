@@ -1,4 +1,5 @@
-pytest
+pytest  # Todo: tox
+pytest-xdist
 numpy
 transformers
 sentence-transformers

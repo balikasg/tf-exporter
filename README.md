@@ -1,6 +1,6 @@
 # tf-packager: Convert a sentence transformer model + tokenizer to a single graph
 
-`tf_packager` let's you 
+`tf-packager` let's you 
 create a single artifact to serve Transformers predictions without requiring a dinstict steps for tokenization and model predictions. 
 
 ## Installation

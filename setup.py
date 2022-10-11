@@ -21,5 +21,5 @@ setup(
     description='Packages a sentence-transformer models as a single tensorflow graph',
     setup_requires=['pytest_runner'],
     python_requires='>=3.7',
-    install_requires=load_dependencies()
+    install_requires=load_dependencies(),
 )

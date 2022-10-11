@@ -26,7 +26,7 @@ MODEL_MAPPING = {
     "sentence_transformers.models.Transformer": "tf_packager.models.Transformer",
     "sentence_transformers.models.Normalize": "tf_packager.models.Normalize",
     "sentence_transformers.models.Pooling": "tf_packager.models.Pooling",
-    "sentence_transformers.models.Dense": "tf_packager.models.Dense"
+    "sentence_transformers.models.Dense": "tf_packager.models.TfDense"
 }
 
 
