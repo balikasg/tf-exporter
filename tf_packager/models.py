@@ -15,7 +15,10 @@ MAX_SEQ_LENGTH_DEFAULT = 256
 
 class Transformer(tf.keras.layers.Layer):
     """This layer loads a transformer model with its tokenizer"""
-    def __init__(self, input_path, backend, do_lower_case, max_seq_length=MAX_SEQ_LENGTH_DEFAULT):
+
+    def __init__(
+        self, input_path, backend, do_lower_case, max_seq_length=MAX_SEQ_LENGTH_DEFAULT
+    ):
         """Initialization.
         Parameters
         ----------
@@ -29,7 +32,7 @@ class Transformer(tf.keras.layers.Layer):
             maximum sequense length for the tokenizer
         """
         super().__init__()
-        self.model = TFAutoModel.from_pretrained(input_path, from_pt=(backend == 'pt'))
+        self.model = TFAutoModel.from_pretrained(input_path, from_pt=(backend == "pt"))
         self._vocab = self._read_vocabulary(input_path / "vocab.txt")
         # TODO: extract the below in a dedicated method
         self._start_token = self._vocab.index(b"[CLS]")
@@ -45,10 +48,12 @@ class Transformer(tf.keras.layers.Layer):
         tokens = self.tokenizer.tokenize(batch).merge_dims(-2, -1)
         tokens = self.trimmer.trim([tokens])
         tokens = self.add_start_end(tokens[0])
-        input_word_ids, input_mask = text.pad_model_inputs(tokens,
-                                                           max_seq_length=self._max_seq_length)
-        model_output = self.model({"input_ids": input_word_ids,
-                                   "attention_mask": input_mask})
+        input_word_ids, input_mask = text.pad_model_inputs(
+            tokens, max_seq_length=self._max_seq_length
+        )
+        model_output = self.model(
+            {"input_ids": input_word_ids, "attention_mask": input_mask}
+        )
         return model_output[0], input_mask
 
     def _get_tokenizer(self, lowercase):
@@ -64,11 +69,15 @@ class Transformer(tf.keras.layers.Layer):
                 keys=self._vocab,
                 key_dtype=tf.string,
                 values=tf.range(
-                    tf.size(self._vocab, out_type=tf.int64), dtype=tf.int64),
-                value_dtype=tf.int64
+                    tf.size(self._vocab, out_type=tf.int64), dtype=tf.int64
+                ),
+                value_dtype=tf.int64,
             ),
-            num_oov_buckets=1)
-        return text.BertTokenizer(lookup_table, token_out_type=tf.int64, lower_case=lowercase)
+            num_oov_buckets=1,
+        )
+        return text.BertTokenizer(
+            lookup_table, token_out_type=tf.int64, lower_case=lowercase
+        )
 
     def add_start_end(self, ragged):
         """Adds START and END special token ids in the ragged tensor `ragged`"""
@@ -82,7 +91,7 @@ class Transformer(tf.keras.layers.Layer):
         """Reads a vocabulary file where each token is in a separate line.
         Returns a list of these tokens.
         """
-        with open(str(vocabulary_path), 'r', encoding='utf8') as infile:
+        with open(str(vocabulary_path), "r", encoding="utf8") as infile:
             file_content = infile.read().split()
         return [str.encode(word) for word in file_content]
 
@@ -93,16 +102,22 @@ class Transformer(tf.keras.layers.Layer):
         with open(input_path / TOKENIZER_CONFIG_NAME) as infile:
             config = json.load(infile)
         if (input_path / TF_MODEL).exists():
-            backend = 'tf'
+            backend = "tf"
         elif (input_path / PYTORCH_MODEL).exists():
-            backend = 'pt'
+            backend = "pt"
         else:
-            raise ImportError(f"Could not find {PYTORCH_MODEL} or {TF_MODEL} under {input_path}.")
-        max_seq_length = config.get('model_max_length', config.get('max_len',
-                                                                   MAX_SEQ_LENGTH_DEFAULT))
-        return Transformer(input_path=input_path, backend=backend,
-                           do_lower_case=config['do_lower_case'],
-                           max_seq_length=max_seq_length)
+            raise ImportError(
+                f"Could not find {PYTORCH_MODEL} or {TF_MODEL} under {input_path}."
+            )
+        max_seq_length = config.get(
+            "model_max_length", config.get("max_len", MAX_SEQ_LENGTH_DEFAULT)
+        )
+        return Transformer(
+            input_path=input_path,
+            backend=backend,
+            do_lower_case=config["do_lower_case"],
+            max_seq_length=max_seq_length,
+        )
 
 
 class Pooling(tf.keras.layers.Layer):
@@ -114,11 +129,15 @@ class Pooling(tf.keras.layers.Layer):
         [token_embeddings, attention_mask]"""
         token_embeddings, attention_mask = inputs[0], inputs[1]
         input_mask_expanded = tf.cast(
-            tf.broadcast_to(tf.expand_dims(attention_mask, -1), tf.shape(token_embeddings)),
-            tf.float32)
+            tf.broadcast_to(
+                tf.expand_dims(attention_mask, -1), tf.shape(token_embeddings)
+            ),
+            tf.float32,
+        )
         numerator = tf.math.reduce_sum(token_embeddings * input_mask_expanded, axis=1)
-        denominator = tf.clip_by_value(tf.math.reduce_sum(input_mask_expanded, axis=1), 1e-9,
-                                       tf.float32.max)
+        denominator = tf.clip_by_value(
+            tf.math.reduce_sum(input_mask_expanded, axis=1), 1e-9, tf.float32.max
+        )
         output = numerator / denominator
         return output
 
@@ -144,6 +163,7 @@ class Normalize(tf.keras.layers.Layer):
 
 class TfDense(tf.keras.layers.Layer):
     """Implements the transformation of a pytorch dense layer to a tensorflow dense layer."""
+
     def __init__(self, tf_dense_layer: tf.keras.layers.Dense):
         super().__init__()
         self.dense_layer = tf_dense_layer
@@ -162,12 +182,18 @@ class TfDense(tf.keras.layers.Layer):
             # Gets weights as an OrderedDict with keys 'linear.weight' and 'linear.bias'
             dense_weights = models.Dense.load(input_path).state_dict()
             # Get a tf linear model
-            activation_fn = config['activation_function'].rsplit('.', 1)[-1].lower()
-            tf_dense = tf.keras.layers.Dense(units=config['out_features'],
-                                               input_shape=(config['in_features'],),
-                                               activation=activation_fn,
-                                               weights=[dense_weights['linear.weight'].numpy().T,
-                                                        dense_weights['linear.bias'].numpy().T])
+            activation_fn = config["activation_function"].rsplit(".", 1)[-1].lower()
+            tf_dense = tf.keras.layers.Dense(
+                units=config["out_features"],
+                input_shape=(config["in_features"],),
+                activation=activation_fn,
+                weights=[
+                    dense_weights["linear.weight"].numpy().T,
+                    dense_weights["linear.bias"].numpy().T,
+                ],
+            )
             return TfDense(tf_dense)
-        raise ImportError(f"Could not find {PYTORCH_MODEL} under {input_path}. "
-                              f"{TF_MODEL} not currently supported for Dense Layer initialization.")
+        raise ImportError(
+            f"Could not find {PYTORCH_MODEL} under {input_path}. "
+            f"{TF_MODEL} not currently supported for Dense Layer initialization."
+        )
