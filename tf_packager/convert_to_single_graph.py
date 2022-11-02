@@ -57,7 +57,7 @@ class SentenceTransformerPackager(tf.keras.layers.Layer):
             self.modules.append(current_module_initialized)
 
     def get_sentence_transformer_filepath(
-        self, filename, base_path, fail_if_not_found=False
+        self, filename, base_path, fail_if_not_found=True
     ):
         """Given a `filename` and a `base_path` looks to find the file under the path.
         If not found, returns None. Used because in different sentence-transformers versions
@@ -65,6 +65,7 @@ class SentenceTransformerPackager(tf.keras.layers.Layer):
         if not Path(
             base_path
         ).exists():  # The user provided a model name and not a path to model
+            _ = SentenceTransformer(base_path)
             from torch.hub import _get_torch_home
 
             torch_cache_home = _get_torch_home()

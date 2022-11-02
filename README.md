@@ -1,7 +1,10 @@
+<a href="https://github.com/balikasg/tf-exporter/actions/workflows/testing.yml/badge.svg">
+    <img src="https://github.com/balikasg/tf-exporter/actions/workflows/testing.yml/badge.svg" alt="build status"></a>
+
 # tf-packager: Convert a sentence transformer model + tokenizer to a single graph
 
 `tf-packager` let's you 
-create a single artifact to serve Transformers predictions without requiring a dinstict steps for tokenization and model predictions. 
+create a single artifact to serve Transformers prmredictions without requiring a dinstict steps for tokenization and model predictions. 
 
 ## Installation
 ```bash
