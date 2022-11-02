@@ -114,10 +114,20 @@ class ModelConverter:
         self.model_name_or_path = model_name_or_path
         self.embedding_size = None
         self.tf_output_dir = Path(output_dir) / "tf_model"
+        self.tf_output_dir.mkdir(exist_ok=True, parents=True)
+        self.converted_model = self.convert_pytorch_to_tensorflow()
 
-    def convert_pytorch_to_tensorflow(self, input_test):
-        """Converts sentence transformer pytorch model to tensorflow. The
-        function will fail if it finds discrepancy between different intermediate models
+    def convert_pytorch_to_tensorflow(self):
+        """Converts sentence transformer pytorch model to tensorflow."""
+        # Convert model
+        converted_model = self.get_complete_model()
+        # Save the TensorFlow model
+        converted_model.save(self.tf_output_dir)
+        LOG.info("Saving `%s` TF model" % self.tf_output_dir)
+        return converted_model
+
+    def validate_converted_model(self, input_test):
+        """The function will fail if it finds discrepancy between different intermediate models
         embeddings and currently only works for `sentence-transformers/nq-distilbert-base-v1`
         Parameters
         ---------
@@ -130,9 +140,9 @@ class ModelConverter:
         )
 
         # Loading the PyTorch model from Hugging Face and convert it to TF
-        embeddings_keras_model, keras_model = self.get_complete_model(input_test)
+        embeddings_converted = self.converted_model(tf.constant([input_test]))
         assert_almost_equal(
-            embeddings_keras_model.numpy()[0],
+            embeddings_converted.numpy()[0],
             out_sentence_transformer_pt,
             decimal=5,
             err_msg="embedding differs across different models for one input",
@@ -142,16 +152,10 @@ class ModelConverter:
             "CompleteSentenceTransformer model "
         )
 
-        # Saving the TensorFlow model
-        self.tf_output_dir.mkdir(exist_ok=True, parents=True)
-
-        keras_model.save(self.tf_output_dir)
-        LOG.info("Saving `%s` TF model" % self.tf_output_dir)
-
         LOG.info("Loading `%s` TF saved_model" % self.tf_output_dir)
         embeddings_keras_loaded_model = self.get_predictions_from_tf_model(input_test)
         assert_almost_equal(
-            embeddings_keras_model.numpy(),
+            embeddings_converted.numpy(),
             embeddings_keras_loaded_model.numpy(),
             decimal=5,
             err_msg="Embeddings differ across different models for one input",
@@ -176,7 +180,7 @@ class ModelConverter:
         )
         return embeddings_keras_loaded_model[KERAS_OUTPUT_NAME]
 
-    def get_complete_model(self, input_test):
+    def get_complete_model(self):
         """Creates complete model (weights and tokenizer).
         Parameters
         ----------
@@ -191,8 +195,7 @@ class ModelConverter:
         outputs = complete_model(inputs)
         model = tf.keras.Model(inputs, outputs)
         # Test with `input_test`
-        embeddings = model(tf.constant([input_test]))
-        return embeddings, model
+        return model
 
     def get_prediction_with_sentence_tranformers(self, input_test):
         """Loads a sentence tranformers model and gets predictions.
@@ -232,4 +235,4 @@ if __name__ == "__main__":
     converter = ModelConverter(
         model_name_or_path=args.model_name_or_path, output_dir=args.output_dir
     )
-    converter.convert_pytorch_to_tensorflow(input_test="This is a test")
+    converter.validate_converted_model(input_test="This IS a test")
