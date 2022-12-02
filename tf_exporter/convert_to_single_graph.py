@@ -10,7 +10,7 @@ import tensorflow as tf
 from sentence_transformers import SentenceTransformer
 from sentence_transformers.util import import_from_string
 
-from tf_packager.utils import load_json
+from tf_exporter.utils import load_json
 
 LOG = logging.getLogger("tf-packager")
 LOG.setLevel(logging.INFO)
@@ -23,10 +23,10 @@ KERAS_INPUT_NAME = "input_sequence"
 KERAS_OUTPUT_NAME = "sentence_transformer_packager"
 
 MODEL_MAPPING = {
-    "sentence_transformers.models.Transformer": "tf_packager.models.Transformer",
-    "sentence_transformers.models.Normalize": "tf_packager.models.Normalize",
-    "sentence_transformers.models.Pooling": "tf_packager.models.Pooling",
-    "sentence_transformers.models.Dense": "tf_packager.models.TfDense",
+    "sentence_transformers.models.Transformer": "tf_exporter.models.Transformer",
+    "sentence_transformers.models.Normalize": "tf_exporter.models.Normalize",
+    "sentence_transformers.models.Pooling": "tf_exporter.models.Pooling",
+    "sentence_transformers.models.Dense": "tf_exporter.models.TfDense",
 }
 
 

@@ -2,7 +2,7 @@ import pytest
 from pathlib import Path
 import shutil
 import tensorflow as tf
-from tf_packager import ModelConverter
+from tf_exporter import ModelConverter
 
 
 @pytest.mark.parametrize(
