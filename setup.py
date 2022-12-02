@@ -1,8 +1,7 @@
-import os
 import setuptools
 from setuptools import setup
 
-NAME = "tf_packager"
+NAME = "tf_exporter"
 print('packages found', setuptools.find_packages())
 
 
