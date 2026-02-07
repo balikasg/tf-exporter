@@ -1,7 +1,7 @@
 pytest
 pytest-xdist
 numpy
-transformers<=5.0.0
+transformers<5.0.0
 sentence-transformers
 tensorflow
 tensorflow_text
