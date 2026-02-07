@@ -6,3 +6,4 @@ sentence-transformers
 tensorflow
 tensorflow_text
 huggingface_hub
+tf-keras
