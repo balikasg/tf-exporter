@@ -1,5 +1,5 @@
 .idea
-tf_packager.egg-info/
+tf_exporter.egg-info/*
 models
 .eggs
 .ipynb_checkpoints
@@ -7,3 +7,5 @@ models
 **/__pycache__
 .venv
 venv
+.python-version
+build

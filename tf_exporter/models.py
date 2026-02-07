@@ -29,10 +29,12 @@ class Transformer(tf.keras.layers.Layer):
         do_lower_case: bool
             whether the tokenizer should lowercase
         max_seq_length:
-            maximum sequense length for the tokenizer
+            maximum sequence length for the tokenizer
         """
         super().__init__()
-        self.model = TFAutoModel.from_pretrained(input_path, from_pt=(backend == "pt"))
+        self.model = TFAutoModel.from_pretrained(input_path,
+                                                 from_pt=(backend == "pt"),
+                                                 use_safetensors=False)
         self._vocab = self._read_vocabulary(input_path / "vocab.txt")
         # TODO: extract the below in a dedicated method
         self._start_token = self._vocab.index(b"[CLS]")

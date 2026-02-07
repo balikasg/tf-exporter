@@ -18,7 +18,6 @@ setup(
     packages=setuptools.find_packages(),
     version="0.0.1",
     description='Packages a sentence-transformer models as a single tensorflow graph',
-    setup_requires=['pytest_runner'],
-    python_requires='>=3.7',
+    python_requires='>=3.10',
     install_requires=load_dependencies(),
 )

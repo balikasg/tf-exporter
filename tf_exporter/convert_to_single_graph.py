@@ -3,8 +3,12 @@ Heavily inspired by: https://www.tensorflow.org/text/guide/bert_preprocessing_gu
 """
 import argparse
 import logging
+from contextlib import contextmanager
 from pathlib import Path
+import tempfile
+import shutil
 
+from huggingface_hub import snapshot_download
 from numpy.testing import assert_almost_equal
 import tensorflow as tf
 from sentence_transformers import SentenceTransformer
@@ -30,6 +34,41 @@ MODEL_MAPPING = {
 }
 
 
+@contextmanager
+def get_model_path(model_name_or_path):
+    """Get model path, always downloading to temporary directory.
+
+    Parameters
+    ----------
+    model_name_or_path : str or Path
+        Model name (e.g., 'sentence-transformers/all-MiniLM-L6-v2') or local path
+
+    Yields
+    ------
+    Path
+        Path to the model directory
+    """
+    temp_dir = None
+
+    try:
+        if Path(model_name_or_path).exists():
+            # Local path provided
+            yield Path(model_name_or_path)
+        else:
+            # Download to temporary directory
+            temp_dir = tempfile.mkdtemp(prefix="hf_model_")
+            model_path = snapshot_download(
+                repo_id=model_name_or_path,
+                local_dir=temp_dir,
+                local_dir_use_symlinks=False
+            )
+            yield Path(model_path)
+    finally:
+        # Cleanup temporary directory if created
+        if temp_dir and Path(temp_dir).exists():
+            shutil.rmtree(temp_dir, ignore_errors=True)
+
+
 class SentenceTransformerPackager(tf.keras.layers.Layer):
     """Class to convert a Sentence Transformer to a TensorFlow model
     with its tokenizer packed in the same graph"""
@@ -42,55 +81,24 @@ class SentenceTransformerPackager(tf.keras.layers.Layer):
             Path to the Sentence Transformer model or name of the model
         """
         super().__init__()
-        modules_path = self.get_sentence_transformer_filepath(
-            base_path=model_name_or_path, filename="modules.json"
-        )
-        modules = load_json(modules_path)
-        self.modules = []
-        for module in modules:
-            LOG.info(module)
-            current = MODEL_MAPPING[module["type"]]
-            current_module = import_from_string(current)
-            current_module_initialized = current_module.load(
-                modules_path.parents[0] / module["path"]
-            )
-            self.modules.append(current_module_initialized)
 
-    def get_sentence_transformer_filepath(
-        self, filename, base_path, fail_if_not_found=True
-    ):
-        """Given a `filename` and a `base_path` looks to find the file under the path.
-        If not found, returns None. Used because in different sentence-transformers versions
-        some files are saved under different locations."""
-        if not Path(
-            base_path
-        ).exists():  # The user provided a model name and not a path to model
-            _ = SentenceTransformer(base_path)
-            from torch.hub import _get_torch_home
+        # Store for later use
+        self.model_name_or_path = model_name_or_path
 
-            torch_cache_home = _get_torch_home()
-            base_path = (
-                Path(torch_cache_home)
-                / "sentence_transformers"
-                / "_".join([base_path.replace("/", "_")])
-            )
-        file_location = list(
-            Path(base_path).rglob(filename)
-        )  # rglob = recursively glob
-        assert len(file_location) in (
-            0,
-            1,
-        )  # Files either exists once (by ST design) or not
-        if file_location:
-            return file_location[
-                0
-            ]  # Sent. Transformer models dy design have a single such file
-        if fail_if_not_found:  # We did not find the file and we should fail
-            raise FileNotFoundError(
-                f"Not found {filename} at {base_path} recursively."
-                f" This is unexpected for sentence-transformers"
-            )
-        return None
+        # Load modules immediately
+        with get_model_path(model_name_or_path) as model_path:
+            modules_path = model_path / "modules.json"
+            modules = load_json(modules_path)
+
+            self.modules = []
+            for module in modules:
+                LOG.info(module)
+                current = MODEL_MAPPING[module["type"]]
+                current_module = import_from_string(current)
+                current_module_initialized = current_module.load(
+                    model_path / module["path"]
+                )
+                self.modules.append(current_module_initialized)
 
     def call(self, batch):
         """Executes the forward pass on a input `batch`"""
@@ -135,36 +143,37 @@ class ModelConverter:
         input_test: str
             str to encode and to test the models
         """
-        # Get the sentence-transformers predictions for comparison
-        out_sentence_transformer_pt = self.get_prediction_with_sentence_tranformers(
-            input_test
-        )
+        with get_model_path(self.model_name_or_path) as model_path:
+            # Get the sentence-transformers predictions for comparison
+            out_sentence_transformer_pt = self.get_prediction_with_sentence_tranformers(
+                input_test
+            )
 
-        # Loading the PyTorch model from Hugging Face and convert it to TF
-        embeddings_converted = self.converted_model(tf.constant([input_test]))
-        assert_almost_equal(
-            embeddings_converted.numpy()[0],
-            out_sentence_transformer_pt,
-            decimal=5,
-            err_msg="embedding differs across different models for one input",
-        )
-        LOG.info(
-            "\u2713 Sentence Transformer pytorch model embeddings are almost equal with "
-            "CompleteSentenceTransformer model "
-        )
+            # Loading the PyTorch model from Hugging Face and convert it to TF
+            embeddings_converted = self.converted_model(tf.constant([input_test]))
+            assert_almost_equal(
+                embeddings_converted.numpy()[0],
+                out_sentence_transformer_pt,
+                decimal=5,
+                err_msg="embedding differs across different models for one input",
+            )
+            LOG.info(
+                "\u2713 Sentence Transformer pytorch model embeddings are almost equal with "
+                "CompleteSentenceTransformer model "
+            )
 
-        LOG.info("Loading `%s` TF saved_model" % self.tf_output_dir)
-        embeddings_keras_loaded_model = self.get_predictions_from_tf_model(input_test)
-        assert_almost_equal(
-            embeddings_converted.numpy(),
-            embeddings_keras_loaded_model.numpy(),
-            decimal=5,
-            err_msg="Embeddings differ across different models for one input",
-        )
+            LOG.info("Loading `%s` TF saved_model" % self.tf_output_dir)
+            embeddings_keras_loaded_model = self.get_predictions_from_tf_model(input_test)
+            assert_almost_equal(
+                embeddings_converted.numpy(),
+                embeddings_keras_loaded_model.numpy(),
+                decimal=5,
+                err_msg="Embeddings differ across different models for one input",
+            )
 
-        LOG.info(
-            "\u2713 Embeddings of the original and loaded TensorFlow models are almost equal!"
-        )
+            LOG.info(
+                "\u2713 Embeddings of the original and loaded TensorFlow models are almost equal!"
+            )
 
     def get_predictions_from_tf_model(self, input_test):
         """Loads and gets predictions from a persisted tensorflow model
